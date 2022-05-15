@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32422.2
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "worlde_rs_api", "worlde_rs_api.fsproj", "{5A604D2B-5BF6-4D58-B5EC-AFF6D6F4EDB6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5A604D2B-5BF6-4D58-B5EC-AFF6D6F4EDB6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5A604D2B-5BF6-4D58-B5EC-AFF6D6F4EDB6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5A604D2B-5BF6-4D58-B5EC-AFF6D6F4EDB6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5A604D2B-5BF6-4D58-B5EC-AFF6D6F4EDB6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8F8FE82C-F7C9-4ABD-BB9E-0F6CDD1F159A}
+	EndGlobalSection
+EndGlobal
