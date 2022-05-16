@@ -2,6 +2,8 @@ use yew::prelude::*;
 use gloo::events::EventListener;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::UnwrapThrowExt;
+use uuid::Uuid;
+use reqwasm::http::*;
 
 enum Msg {
     AddOne,
@@ -30,8 +32,10 @@ struct Model {
     kbd_listener: Option<EventListener>,
     row: i32,
     column: i32,
-    alhpabet: [char; 26]
+    alhpabet: [char; 26],
+    session: Uuid
 }
+
 
 impl Component for Model {
     type Message = Msg;
@@ -43,9 +47,11 @@ impl Component for Model {
             kbd_listener: None,
             row: 0,
             column: 0,
-            alhpabet: ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z']
+            alhpabet: ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'],
+            session: Uuid::new_v4()
         }
     }
+    
     
 
     fn rendered(&mut self, _ctx: &Context<Self>, first_render: bool) {
@@ -53,6 +59,9 @@ impl Component for Model {
         if !first_render {
             return;
         }
+
+        
+
         let document = gloo::utils::document();
         let onkey_pressed = _ctx.link().callback(|ev| Msg::Keydown(ev));
         let listener = EventListener::new(&document, "keydown", move |event| onkey_pressed.emit(event.clone()));
@@ -67,6 +76,7 @@ impl Component for Model {
                 gloo_console::log!("y");
                 // the value has changed so we need to
                 // re-render for it to appear on the page
+                let init = Request::put("https://localhost:7257/words/sessions/f1b21f3e-7884-488b-96f3-109abaa2e5d7");
                 true
             }
             Msg::Keydown(ev) => {
@@ -112,7 +122,6 @@ impl Component for Model {
             }
         }
     }
-
     fn view(&self, ctx: &Context<Self>) -> Html {
         // This gives us a component's "`Scope`" which allows us to send messages, etc to the component.
         let link = ctx.link();

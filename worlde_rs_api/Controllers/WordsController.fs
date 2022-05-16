@@ -16,16 +16,20 @@ type WordsController (logger : ILogger<WordsController>) =
 
     let validWords =
         [|
-            "Freezing"
-            "Bracing"
-            "Chilly"
-            "Cool"
-            "Mild"
-            "Warm"
-            "Balmy"
-            "Hot"
-            "Sweltering"
-            "Scorching"
+            "WHICH"
+            "THERE"
+            "THEIR"
+            "ABOUT"
+            "WOULD"
+            "THESE"
+            "OTHER"
+            "WORDS"
+            "COULD"
+            "WRITE"
+            "FIRST"
+            "WATER"
+            "AFTER"
+            "WHERE"
         |]
     static let mutable sessionDict = new Dictionary<Guid,string>()
 
