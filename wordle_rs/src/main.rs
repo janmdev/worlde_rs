@@ -1,12 +1,17 @@
+use std::ptr::null;
+use std::str::FromStr;
 use yew::prelude::*;
 use gloo::events::EventListener;
+use gloo::net::http::Request;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::UnwrapThrowExt;
 use uuid::Uuid;
-use reqwasm::http::*;
+
+//use crate::error::Error;
+//use crate::types::ErrorInfo;
 
 enum Msg {
-    AddOne,
+    Reset,
     Keydown(Event)
 }
 
@@ -27,7 +32,6 @@ impl LetterStr {
 }
 
 struct Model {
-    value: i64,
     letters: [[LetterStr; 5]; 5],
     kbd_listener: Option<EventListener>,
     row: i32,
@@ -37,46 +41,98 @@ struct Model {
 }
 
 
+
 impl Component for Model {
     type Message = Msg;
     type Properties = ();
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
-            value: 0,
             letters: [[LetterStr::create(); 5]; 5],
             kbd_listener: None,
             row: 0,
             column: 0,
             alhpabet: ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'],
-            session: Uuid::new_v4()
+            session: Uuid::default()
         }
     }
     
     
 
     fn rendered(&mut self, _ctx: &Context<Self>, first_render: bool) {
-        
+
         if !first_render {
             return;
         }
 
-        
+        let local_storage = web_sys::window().unwrap().local_storage().unwrap().unwrap();
+        let session_key = local_storage.get_item("session").unwrap();
+        gloo_console::log!(session_key.as_ref().unwrap().to_string().clone());
+        if session_key == None
+        {
+            let new_key = Uuid::new_v4();
+            self.session = new_key;
+            let set_result = local_storage.set_item("session", &new_key.to_string().to_owned());
+            match set_result{
+                Ok(_) => {
+                    let session_string = self.session.to_string().to_owned();
+                    wasm_bindgen_futures::spawn_local(async move {
+                        let session_string = session_string.clone();
+                        let init_f = Request::put(format!("https://localhost:7257/words/sessions/{}", session_string).as_str())
+                            .send()
+                            .await
+                            .unwrap()
+                            .text()
+                            .await
+                            .unwrap();
+                        gloo_console::log!(init_f);
+                    });
+                }
+                Err(err) => {
+                    gloo_console::log!(err);
+                }
+            }
+
+
+        } else {
+            self.session = Uuid::from_str(&session_key.unwrap().to_owned()).unwrap().clone();
+        }
 
         let document = gloo::utils::document();
         let onkey_pressed = _ctx.link().callback(|ev| Msg::Keydown(ev));
         let listener = EventListener::new(&document, "keydown", move |event| onkey_pressed.emit(event.clone()));
-        self.value += 1;
         self.kbd_listener.replace(listener);
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::AddOne => {
-                self.value += 1;
-                gloo_console::log!("y");
-                // the value has changed so we need to
-                // re-render for it to appear on the page
-                let init = Request::put("https://localhost:7257/words/sessions/f1b21f3e-7884-488b-96f3-109abaa2e5d7");
+            Msg::Reset => {
+                let session_string = self.session.to_string().to_owned();
+                let new_session = Uuid::new_v4();
+                self.session = new_session;
+                let local_storage = web_sys::window().unwrap().local_storage().unwrap().unwrap();
+                local_storage.set_item("session", &new_session.to_string().to_owned());
+                wasm_bindgen_futures::spawn_local(async move {
+                    let session_string = session_string.clone();
+                    let new_session = new_session.clone();
+                    let init_f = Request::delete(&*format!("https://localhost:7257/words/sessions/{}", session_string).as_str())
+                        .send()
+                        .await
+                        .unwrap()
+                        .text()
+                        .await
+                        .unwrap();
+                    gloo_console::log!(init_f);
+
+                    let init_f = Request::put(format!("https://localhost:7257/words/sessions/{}", new_session).as_str())
+                        .send()
+                        .await
+                        .unwrap()
+                        .text()
+                        .await
+                        .unwrap();
+                    gloo_console::log!(init_f);
+                });
+
                 true
             }
             Msg::Keydown(ev) => {
@@ -122,15 +178,19 @@ impl Component for Model {
             }
         }
     }
+
     fn view(&self, ctx: &Context<Self>) -> Html {
         // This gives us a component's "`Scope`" which allows us to send messages, etc to the component.
         let link = ctx.link();
-        let mut done = false;
+        //let done = false;
+
+
+
 
         html! {
             <div class="main_box">
-                <button onclick={link.callback(|_| Msg::AddOne)}>{ "+1" }</button>
-                <p style="color: white;">{ self.value }</p>
+                <button onclick={link.callback(|_| Msg::Reset)}>{ "RESET" }</button>
+                <p style="color: white;">{ self.session }</p>
                 { 
                     for self.letters.iter()
                     .map(

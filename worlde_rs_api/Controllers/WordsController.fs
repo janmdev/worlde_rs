@@ -34,23 +34,27 @@ type WordsController (logger : ILogger<WordsController>) =
     static let mutable sessionDict = new Dictionary<Guid,string>()
 
     [<HttpPut("sessions/{guid}")>]
-    member this.Get(guid: Guid) =
+    member this.Put(guid: Guid) =
         let rng = System.Random()
         match sessionDict.ContainsKey(guid) with
             | false -> sessionDict.Add(guid,validWords[rng.Next(validWords.Length)])
             | true -> ()
         sessionDict[guid]
+
+    [<HttpDelete("sessions/{guid}")>]
+    member this.Delete(guid: Guid) =
+        sessionDict.Remove(guid)
         
     [<HttpPost("")>]
     member this.Post([<FromBody>] request: ValidateRequest) = 
         let toValidate = sessionDict[request.guid]
-        let mutable responseList = new List<ValidateResponse>()
+        let mutable responseList = new List<uint8>()
         for i in 0..4 do
             if request.word[i] = toValidate[i] 
             then 
-                responseList.Add(ValidateResponse(request.word[i],2))
+                responseList.Add((uint8)2)
             else if request.word.Any(fun p -> p = toValidate[i])
-            then responseList.Add(ValidateResponse(request.word[i],1))
-            else responseList.Add(ValidateResponse(request.word[i],0))
+            then responseList.Add((uint8)1)
+            else responseList.Add((uint8)0)
         responseList
 

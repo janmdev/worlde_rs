@@ -1,4 +1,7 @@
 namespace worlde_rs_api
+
+open Microsoft.AspNetCore.Cors.Infrastructure
+
 #nowarn "20"
 open System
 open System.Collections.Generic
@@ -14,6 +17,14 @@ open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging
 
+module ConfigurationCors =
+   let ConfigureCors(corsBuilder: CorsPolicyBuilder): unit =        
+         corsBuilder.AllowAnyOrigin()
+                        .AllowAnyHeader()
+                        .AllowAnyMethod() |> ignore
+open ConfigurationCors
+
+
 module Program =
     let exitCode = 0
     [<EntryPoint>]
@@ -22,14 +33,14 @@ module Program =
         let builder = WebApplication.CreateBuilder(args)
 
         builder.Services.AddControllers()
-
+        builder.Services.AddCors() |> ignore
         let app = builder.Build()
-
+        
         app.UseHttpsRedirection()
-
+        app.UseCors(Action<CorsPolicyBuilder> ConfigureCors) |> ignore
         app.UseAuthorization()
         app.MapControllers()
-
+        
         app.Run()
 
         exitCode
