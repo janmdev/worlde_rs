@@ -15,12 +15,12 @@ open Models
 type WordsController () =
     inherit ControllerBase()
 
-    new(context: WorldeDbContext) as this =
-        WordsController () then
-        this._Context <- context
+    //new(context: WorldeDbContext) as this =
+    //    WordsController () then
+    //    this._Context <- context
 
-    [<DefaultValue>]
-    val mutable _Context : WorldeDbContext
+    //[<DefaultValue>]
+    //val mutable _Context : WorldeDbContext
 
     let validWords =
         [|
@@ -41,12 +41,16 @@ type WordsController () =
         |]
     static let mutable sessionDict = new Dictionary<Guid,string>()
 
+    [<NonAction>]
     member this.getRandomWord() =
         let rng = System.Random()
-        this._Context.Words.Find(rng.Next(this._Context.Words.Count())).Value
+        validWords[rng.Next(validWords.Length)];
+        //this._Context.Words.Find(rng.Next(this._Context.Words.Count())).Value
 
+    [<NonAction>]
     member this.checkWord(word: string) =
-        this._Context.Words.Any( fun s -> s.Value = word)
+        validWords.Contains(word);
+        //this._Context.Words.Any( fun s -> s.Value = word)
 
     [<HttpPut("sessions/{guid}")>]
     member this.Put(guid: Guid) =

@@ -36,10 +36,10 @@ module Program =
        // builder.Services.AddDbContextFactory
         
         builder.Services.AddCors() |> ignore  
-        builder.Services.AddDbContext<WorldeDbContext>(
-                fun optionsBuilder -> 
-                    optionsBuilder.UseSqlServer("server=.\\SQLEXPRESS;database=Worlde;trusted_connection=true") |> ignore
-            ) |> ignore
+        //builder.Services.AddDbContext<WorldeDbContext>(
+        //        fun optionsBuilder -> 
+        //            optionsBuilder.UseSqlServer("server=.\\SQLEXPRESS;database=Worlde;trusted_connection=true") |> ignore
+        //    ) |> ignore
         let app = builder.Build()
         app.UseHttpsRedirection()
         app.UseCors(Action<CorsPolicyBuilder> ConfigureCors) |> ignore
