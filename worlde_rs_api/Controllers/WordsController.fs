@@ -39,7 +39,6 @@ type WordsController (logger : ILogger<WordsController>) =
         match sessionDict.ContainsKey(guid) with
             | false -> sessionDict.Add(guid,validWords[rng.Next(validWords.Length)])
             | true -> ()
-        //sessionDict[guid]
 
     [<HttpDelete("sessions/{guid}")>]
     member this.Delete(guid: Guid) =
@@ -60,9 +59,21 @@ type WordsController (logger : ILogger<WordsController>) =
                     else if request.word.Any(fun p -> p = toValidate[i])
                     then responseList.Add((uint8)1)
                     else responseList.Add((uint8)0)
-                this.Ok(responseList)
+                this.Ok(responseList) :> IActionResult
             else
-                this.Ok("Session not foud")
+                this.NotFound("Session not foud") :> IActionResult
         else
-           this.Ok("Word not in dictionary")
+           this.BadRequest("Word not in dictionary") :> IActionResult
+
+    [<HttpPost("sessions/reset")>]
+    member this.Reset([<FromBody>] request: ResetRequest) =
+        let rng = System.Random()
+        if sessionDict.ContainsKey(request.src)
+        then
+            sessionDict.Remove(request.src);
+            sessionDict.Add(request.dst,validWords[rng.Next(validWords.Length)]);
+            this.Ok() :> IActionResult
+        else
+            sessionDict.Add(request.dst,validWords[rng.Next(validWords.Length)]);
+            this.Ok() :> IActionResult
 

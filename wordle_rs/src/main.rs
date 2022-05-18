@@ -1,5 +1,5 @@
-use std::ptr::null;
-use std::str::FromStr;
+use gloo::net::Error;
+use gloo::net::http::Response;
 use gloo_console::log;
 use yew::prelude::*;
 use gloo::events::EventListener;
@@ -11,17 +11,15 @@ use serde_json::json;
 use serde::{Deserialize, Serialize};
 
 
-//use crate::error::Error;
-//use crate::types::ErrorInfo;
-
 enum Msg {
-    Reset,
+    ResetReq,
     Keydown(Event),
     PutUuid(Uuid),
     SetUuid(Uuid),
-    None,
+    None(String),
     SendWord(Uuid,String),
-    SetWord([u8;5])
+    SetWord([u8;5]),
+    Reset(Uuid)
 }
 
 enum GameState {
@@ -53,7 +51,8 @@ struct Model {
     column: i32,
     alhpabet: [char; 26],
     session: Uuid,
-    state: GameState
+    state: GameState,
+    message: String
 }
 
 async fn put_guid(guid: Uuid) -> Result<(), ()> {
@@ -68,7 +67,7 @@ async fn put_guid(guid: Uuid) -> Result<(), ()> {
 }
 
 
-async fn post_word(guid_: Uuid, word: String) -> Result<[u8;5], ()> {
+async fn post_word(guid_: Uuid, word: String) -> Result<[u8;5], String> {
     let guid_ = guid_.to_string().clone();
     let body = json!({
         "guid": guid_,
@@ -78,18 +77,39 @@ async fn post_word(guid_: Uuid, word: String) -> Result<[u8;5], ()> {
         .header("Content-Type", "application/json")
         .body(body.to_string())
         .send()
+        .await;
+        match(response) {
+            Ok(result) => 
+            {
+                if result.ok() {
+                    Ok(result.json().await.unwrap())
+                } else {
+                    Err(result.text().await.unwrap())
+                }
+            },
+            Err(err_mess) => Err(err_mess.to_string())
+            
+        }
+}
+
+async fn reset_session(from: Uuid, to: Uuid) -> Result<Response, Error> {
+    let from = from.to_string().clone();
+    let to = to.to_string().clone();
+    
+    let body = json!({
+        "src": from,
+        "dst": to
+    });
+     Request::post("https://localhost:7257/words/sessions/reset")
+        .header("Content-Type", "application/json")
+        .body(body.to_string())
+        .send()
         .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    Ok(response)
 }
 
 fn set_to_local_storage(letter_arr: [[LetterStr; 5]; 5], row: i32)
 {
     let letter_json = json!(letter_arr).to_string();
-    //log!(letter_json);
     let local_storage = web_sys::window().unwrap().local_storage().unwrap().unwrap();
     local_storage.set_item("letters", &letter_json.clone().to_owned());
     local_storage.set_item("row", &row.to_string().clone().to_owned());
@@ -114,7 +134,7 @@ impl Component for Model {
         }
         let mut row_bef: i32 = 0;
         let row_str = local_storage.get_item("row").unwrap();
-        if(row_str != None)
+        if row_str != None
         {
             row_bef = row_str.unwrap().parse::<i32>().unwrap();
         }
@@ -126,7 +146,8 @@ impl Component for Model {
             column: 0,
             alhpabet: ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'],
             session: final_key,
-            state: GameState::Playing
+            state: GameState::Playing,
+            message: "".to_owned()
         }
         
     }
@@ -145,7 +166,6 @@ impl Component for Model {
          if session_key == None
          {
              let new_key = Uuid::new_v4();
-             log!("Start");
              self.update(_ctx, Msg::PutUuid(new_key));
          }else{
              self.update(_ctx, Msg::SetUuid(Uuid::parse_str(session_key.unwrap().as_str()).unwrap()));
@@ -159,42 +179,39 @@ impl Component for Model {
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::Reset => {
+            Msg::ResetReq => {
+                let new_session = Uuid::new_v4().clone();
+                let curr_session = self.session.clone();
+                _ctx.link().send_future(async move{
+                    match reset_session(curr_session, new_session).await {
+                        Ok(resp) => 
+                        {
+                            if resp.ok()
+                            {
+                                Msg::Reset(new_session)
+                            }else {
+                                Msg::None(resp.text().await.unwrap())
+                            }
+                            
+                        }
+                        Err(err_mess) => Msg::None(err_mess.to_string())
+                    }
+                });
+                true
+            }
+            Msg::Reset(guid) => {
                 self.letters = [[LetterStr::create();5];5];
                 self.row = 0;
                 self.column = 0;
                 self.state = GameState::Playing;
-                let session_string = self.session.to_string().to_owned();
-                let new_session = Uuid::new_v4();
-                self.session = new_session;
+                self.session = guid;
+                self.message = "".to_string();
+                set_to_local_storage(self.letters.clone(), self.row.clone());
                 let local_storage = web_sys::window().unwrap().local_storage().unwrap().unwrap();
-                local_storage.set_item("session", &new_session.to_string().to_owned());
-                wasm_bindgen_futures::spawn_local(async move {
-                    let session_string = session_string.clone();
-                    let new_session = new_session.clone();
-                    let init_f = Request::delete(&*format!("https://localhost:7257/words/sessions/{}", session_string).as_str())
-                        .send()
-                        .await
-                        .unwrap()
-                        .text()
-                        .await
-                        .unwrap();
-                    gloo_console::log!(init_f);
-
-                    let init_f = Request::put(format!("https://localhost:7257/words/sessions/{}", new_session).as_str())
-                        .send()
-                        .await
-                        .unwrap()
-                        .text()
-                        .await
-                        .unwrap();
-                    gloo_console::log!(init_f);
-                });
-
+                local_storage.set_item("session", self.session.to_string().clone().as_str());
                 true
             }
             Msg::Keydown(ev) => {
-                //gloo_console::log!(ev);
                 let event = ev.dyn_ref::<web_sys::KeyboardEvent>().unwrap_throw();
                 let full_key = event.key();
                 let key = event.key().chars().next().unwrap().to_uppercase().next().unwrap();
@@ -233,7 +250,7 @@ impl Component for Model {
                 } else if full_key.len() == 1 && self.column <= 4{
                     if self.alhpabet.iter().any(|x| x == &key)
                     {
-                        gloo_console::log!("{} : {} : {}", self.row, self.column, key.to_string());
+                        //gloo_console::log!("{} : {} : {}", self.row, self.column, key.to_string());
                         self.letters[self.row as usize][self.column as usize].value = event.key().chars().next().unwrap().to_uppercase().next().unwrap();
                         self.column += 1;
                     }
@@ -248,7 +265,7 @@ impl Component for Model {
                 _ctx.link().send_future(async move {
                     match put_guid(guid).await {
                         Ok(_) => Msg::SetUuid(guid),
-                        Err(_) => Msg::None
+                        Err(_) => Msg::None("".to_string())
                     }
                 });
                 true
@@ -268,8 +285,8 @@ impl Component for Model {
                         Ok(response) => {
                             Msg::SetWord(response)
                         }
-                        Err(_) => {
-                            Msg::None
+                        Err(err_mess) => {
+                            Msg::None(err_mess)
                         }
                     }
                 });
@@ -290,7 +307,11 @@ impl Component for Model {
                 }
                 true
             }
-            Msg::None => true
+            Msg::None(mess) => {
+                log!(mess.clone());
+                self.message = mess.clone();
+                true
+            }
         }
     }
 
@@ -302,7 +323,7 @@ impl Component for Model {
 
         html! {
             <div class="main_box">
-                <button onclick={link.callback(|_| Msg::Reset)}>{ "RESET" }</button>
+                <button onclick={link.callback(|_| Msg::ResetReq)}>{ "RESET" }</button>
                 <p style="color:white;">{self.session.to_string()}</p>
                 { 
                     for self.letters.iter()
@@ -339,6 +360,7 @@ impl Component for Model {
                                 
                         ) 
                     } 
+                    <p style="color:white;">{&self.message}</p>
             </div>
         }
     }
