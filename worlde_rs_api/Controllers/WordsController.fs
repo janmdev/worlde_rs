@@ -7,12 +7,20 @@ open System.Threading.Tasks
 open Microsoft.AspNetCore.Mvc
 open Microsoft.Extensions.Logging
 open worlde_rs_api
+open worlde_rs_api.WorldeDbContext
 open Models
 
 [<ApiController>]
 [<Route("[controller]")>]
-type WordsController (logger : ILogger<WordsController>) =
+type WordsController () =
     inherit ControllerBase()
+
+    new(context: WorldeDbContext) as this =
+        WordsController () then
+        this._Context <- context
+
+    [<DefaultValue>]
+    val mutable _Context : WorldeDbContext
 
     let validWords =
         [|
@@ -33,11 +41,17 @@ type WordsController (logger : ILogger<WordsController>) =
         |]
     static let mutable sessionDict = new Dictionary<Guid,string>()
 
+    member this.getRandomWord() =
+        let rng = System.Random()
+        this._Context.Words.Find(rng.Next(this._Context.Words.Count())).Value
+
+    member this.checkWord(word: string) =
+        this._Context.Words.Any( fun s -> s.Value = word)
+
     [<HttpPut("sessions/{guid}")>]
     member this.Put(guid: Guid) =
-        let rng = System.Random()
         match sessionDict.ContainsKey(guid) with
-            | false -> sessionDict.Add(guid,validWords[rng.Next(validWords.Length)])
+            | false -> sessionDict.Add(guid,this.getRandomWord())
             | true -> ()
 
     [<HttpDelete("sessions/{guid}")>]
@@ -46,7 +60,7 @@ type WordsController (logger : ILogger<WordsController>) =
         
     [<HttpPost("")>]
     member this.Post([<FromBody>] request: ValidateRequest) = 
-        if validWords.Contains(request.word)
+        if this.checkWord(request.word)
         then
             if sessionDict.ContainsKey(request.guid) 
             then
@@ -71,9 +85,9 @@ type WordsController (logger : ILogger<WordsController>) =
         if sessionDict.ContainsKey(request.src)
         then
             sessionDict.Remove(request.src);
-            sessionDict.Add(request.dst,validWords[rng.Next(validWords.Length)]);
+            sessionDict.Add(request.dst,this.getRandomWord());
             this.Ok() :> IActionResult
         else
-            sessionDict.Add(request.dst,validWords[rng.Next(validWords.Length)]);
+            sessionDict.Add(request.dst,this.getRandomWord());
             this.Ok() :> IActionResult
 

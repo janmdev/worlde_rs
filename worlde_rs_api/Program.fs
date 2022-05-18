@@ -16,6 +16,8 @@ open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging
+open Microsoft.EntityFrameworkCore
+open worlde_rs_api.WorldeDbContext
 
 module ConfigurationCors =
    let ConfigureCors(corsBuilder: CorsPolicyBuilder): unit =        
@@ -29,13 +31,16 @@ module Program =
     let exitCode = 0
     [<EntryPoint>]
     let main args =
-        
-        let builder = WebApplication.CreateBuilder(args)
-
+        let builder = WebApplication.CreateBuilder(args)        
         builder.Services.AddControllers()
-        builder.Services.AddCors() |> ignore
-        let app = builder.Build()
+       // builder.Services.AddDbContextFactory
         
+        builder.Services.AddCors() |> ignore  
+        builder.Services.AddDbContext<WorldeDbContext>(
+                fun optionsBuilder -> 
+                    optionsBuilder.UseSqlServer("server=.\\SQLEXPRESS;database=Worlde;trusted_connection=true") |> ignore
+            ) |> ignore
+        let app = builder.Build()
         app.UseHttpsRedirection()
         app.UseCors(Action<CorsPolicyBuilder> ConfigureCors) |> ignore
         app.UseAuthorization()
