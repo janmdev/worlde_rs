@@ -12,45 +12,11 @@ open Models
 
 [<ApiController>]
 [<Route("[controller]")>]
-type WordsController () =
+type WordsController private () =
     inherit ControllerBase()
-
-    //new(context: WorldeDbContext) as this =
-    //    WordsController () then
-    //    this._Context <- context
-
-    //[<DefaultValue>]
-    //val mutable _Context : WorldeDbContext
-
-    let validWords =
-        [|
-            "WHICH"
-            "THERE"
-            "THEIR"
-            "ABOUT"
-            "WOULD"
-            "THESE"
-            "OTHER"
-            "WORDS"
-            "COULD"
-            "WRITE"
-            "FIRST"
-            "WATER"
-            "AFTER"
-            "WHERE"
-        |]
-    static let mutable sessionDict = new Dictionary<Guid,string>()
-
-    [<NonAction>]
-    member this.getRandomWord() =
-        let rng = System.Random()
-        validWords[rng.Next(validWords.Length)];
-        //this._Context.Words.Find(rng.Next(this._Context.Words.Count())).Value
-
-    [<NonAction>]
-    member this.checkWord(word: string) =
-        validWords.Contains(word);
-        //this._Context.Words.Any( fun s -> s.Value = word)
+    new(context : WorldeDbContext) as this =
+        WordsController () then
+        this._Context <- context
 
     [<HttpPut("sessions/{guid}")>]
     member this.Put(guid: Guid) =
@@ -61,6 +27,12 @@ type WordsController () =
     [<HttpDelete("sessions/{guid}")>]
     member this.Delete(guid: Guid) =
         sessionDict.Remove(guid)
+
+    [<HttpGet("sessions/{guid}")>]
+    member this.Get(guid: Guid) =
+        if sessionDict.ContainsKey(guid)
+        then this.Ok(sessionDict[guid]) :> IActionResult
+        else this.NotFound() :> IActionResult
         
     [<HttpPost("")>]
     member this.Post([<FromBody>] request: ValidateRequest) = 
@@ -74,7 +46,7 @@ type WordsController () =
                     if request.word[i] = toValidate[i] 
                     then 
                         responseList.Add((uint8)2)
-                    else if request.word.Any(fun p -> p = toValidate[i])
+                    else if toValidate.Any(fun p -> p = request.word[i])
                     then responseList.Add((uint8)1)
                     else responseList.Add((uint8)0)
                 this.Ok(responseList) :> IActionResult
@@ -95,3 +67,17 @@ type WordsController () =
             sessionDict.Add(request.dst,this.getRandomWord());
             this.Ok() :> IActionResult
 
+    [<DefaultValue>]
+    val mutable _Context : WorldeDbContext
+
+    [<NonAction>]
+    static let mutable sessionDict = new Dictionary<Guid,string>()
+
+    [<NonAction>]
+    member this.getRandomWord() =
+        let rng = System.Random()
+        this._Context.Words.Find(rng.Next(this._Context.Words.Count())).Value
+
+    [<NonAction>]
+    member this.checkWord(word: string) =
+        this._Context.Words.Any( fun s -> s.Value = word)

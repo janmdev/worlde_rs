@@ -19,7 +19,8 @@ enum Msg {
     None(String),
     SendWord(Uuid,String),
     SetWord([u8;5]),
-    Reset(Uuid)
+    Reset(Uuid),
+    SendCheck(Uuid)
 }
 
 enum GameState {
@@ -107,6 +108,25 @@ async fn reset_session(from: Uuid, to: Uuid) -> Result<Response, Error> {
         .await
 }
 
+async fn check(guid: Uuid) -> Result<String, ()> {
+    let guid = guid.to_string().clone();
+    let req = Request::get(format!("https://localhost:7257/words/sessions/{}", guid).as_str())
+        .send()
+        .await;
+    match req {
+        Ok(resp) => {
+            if resp.ok() 
+            {
+                Ok(resp.text().await.unwrap())
+            }
+            else {
+                Err(())
+            }
+        }
+        Err(_) => Err(())
+    }
+}
+
 fn set_to_local_storage(letter_arr: [[LetterStr; 5]; 5], row: i32)
 {
     let letter_json = json!(letter_arr).to_string();
@@ -166,9 +186,9 @@ impl Component for Model {
          if session_key == None
          {
              let new_key = Uuid::new_v4();
-             self.update(_ctx, Msg::PutUuid(new_key));
+             _ctx.link().send_message(Msg::PutUuid(new_key));
          }else{
-             self.update(_ctx, Msg::SetUuid(Uuid::parse_str(session_key.unwrap().as_str()).unwrap()));
+             _ctx.link().send_message(Msg::SetUuid(Uuid::parse_str(session_key.unwrap().as_str()).unwrap()));
          }
 
         let document = gloo::utils::document();
@@ -216,6 +236,7 @@ impl Component for Model {
                 let full_key = event.key();
                 let key = event.key().chars().next().unwrap().to_uppercase().next().unwrap();
                 if self.row == 5 && matches!(self.state,GameState::Playing) {
+                    _ctx.link().send_message(Msg::SendCheck(self.session));
                     self.state = GameState::Lost;
                 }
                 if matches!(self.state, GameState::Won) || matches!(self.state, GameState::Lost)
@@ -234,10 +255,8 @@ impl Component for Model {
                         }
                         let word_to_send = words_char.iter().collect();
                         log!(format!("Sending {}", word_to_send));
-                        self.update(_ctx, Msg::SendWord(self.session, word_to_send));
+                        _ctx.link().send_message(Msg::SendWord(self.session, word_to_send));
                         log!(format!("After send, row: {}", self.row));   
-
-                        
                     }
                 }
                 else if event.key() == "Backspace"
@@ -246,6 +265,7 @@ impl Component for Model {
                     {
                         self.letters[self.row as usize][(self.column - 1) as usize] = LetterStr::create();
                         self.column -= 1;
+                        self.message = "".to_string();
                     }
                 } else if full_key.len() == 1 && self.column <= 4{
                     if self.alhpabet.iter().any(|x| x == &key)
@@ -253,6 +273,7 @@ impl Component for Model {
                         //gloo_console::log!("{} : {} : {}", self.row, self.column, key.to_string());
                         self.letters[self.row as usize][self.column as usize].value = event.key().chars().next().unwrap().to_uppercase().next().unwrap();
                         self.column += 1;
+                        self.message = "".to_string();
                     }
                 }
                 
@@ -307,6 +328,15 @@ impl Component for Model {
                 }
                 true
             }
+            Msg::SendCheck(guid) => {
+                _ctx.link().send_future(async move {
+                    match check(guid).await {
+                        Ok(resp) => Msg::None(resp.clone()),
+                        Err(_) => Msg::None("".to_string())
+                    }
+                });
+                true
+            }
             Msg::None(mess) => {
                 log!(mess.clone());
                 self.message = mess.clone();
@@ -331,7 +361,7 @@ impl Component for Model {
                         |b| 
                             if self.letters.iter().position(|&x| x == *b).unwrap() as i32 == self.row
                             {
-                                html! {<div class="outer_box" style="border: 1px solid white; border-radius: 3px;"> { 
+                                html! {<div class="outer_box" style="border: 1px solid white; border-radius: 10px;"> { 
                                     for b.iter()
                                     .map(
                                         |c| 

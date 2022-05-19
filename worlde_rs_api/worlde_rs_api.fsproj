@@ -5,16 +5,21 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="DbModels.fs" />
+    
     <Compile Include="Models.fs" />
+	<Compile Include="DbModels.fs" />
 	<Compile Include="WorldeDbContext.fs" />
-	 <Compile Include="Controllers\WordsController.fs" />
+	<Compile Include="Controllers\WordsController.fs" />
 	<Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="6.0.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="6.0.4" />
   </ItemGroup>
 
 </Project>

@@ -31,15 +31,16 @@ module Program =
     let exitCode = 0
     [<EntryPoint>]
     let main args =
-        let builder = WebApplication.CreateBuilder(args)        
+        let builder = WebApplication.CreateBuilder(args)
+        builder.Services.AddDbContext<WorldeDbContext>(
+                fun optionsBuilder -> 
+                    optionsBuilder.UseSqlServer("server=.\\SQLEXPRESS;database=Worlde;trusted_connection=true") |> ignore
+            ) |> ignore
         builder.Services.AddControllers()
        // builder.Services.AddDbContextFactory
         
-        builder.Services.AddCors() |> ignore  
-        //builder.Services.AddDbContext<WorldeDbContext>(
-        //        fun optionsBuilder -> 
-        //            optionsBuilder.UseSqlServer("server=.\\SQLEXPRESS;database=Worlde;trusted_connection=true") |> ignore
-        //    ) |> ignore
+        builder.Services.AddCors() |> ignore 
+        
         let app = builder.Build()
         app.UseHttpsRedirection()
         app.UseCors(Action<CorsPolicyBuilder> ConfigureCors) |> ignore
